@@ -127,3 +127,14 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ignore images/videos
+*.jpg
+*.JPG
+*.jpeg
+*.MP4
+*.avi
+*.mp4
+
+# align faces dataframe
+*.dat
