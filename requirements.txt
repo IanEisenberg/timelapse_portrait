@@ -4,3 +4,4 @@ imutils
 cmake
 dlib
 matplotlib
+pillow-heif
