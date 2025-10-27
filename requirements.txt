@@ -1,7 +1,0 @@
-# Requirements based on align_face.ipynb
-opencv-python
-imutils
-cmake
-dlib
-matplotlib
-pillow-heif

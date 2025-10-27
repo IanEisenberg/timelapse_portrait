@@ -1,0 +1,71 @@
+# Face Timelapse Portrait Generator Configuration
+
+# Directory paths
+paths:
+  original_faces: "original_faces"
+  aligned_faces: "aligned_faces"
+  videos: "videos"
+  average_images: "average_images"
+  # Path to facial landmarks model
+  landmarks_model: "shape_predictor_68_face_landmarks.dat"
+  # Path to metadata file
+  metadata: "metadata.json"
+
+# Face alignment settings
+alignment:
+  # Output face dimensions
+  face_width: 1024
+  face_height: 1024
+  # Desired left eye position (x, y) as fraction of face dimensions
+  left_eye_position: [0.42, 0.5]
+  # Resize width before processing (for performance)
+  resize_width: 800
+
+# Face detection settings
+detection:
+  # Number of upsampling iterations for face detection (higher = more faces detected but slower)
+  upsample_times: 2
+  # When multiple faces detected, select the largest one
+  auto_select_largest: true
+
+# Video generation settings
+video:
+  # Frames per second
+  fps: 9
+  # Video codec: "libx264" (better quality, requires ffmpeg) or "mp4v" (fallback)
+  codec: "libx264"
+  # H.264 quality preset: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+  # (slower = better compression)
+  h264_preset: "medium"
+  # Constant Rate Factor (0-51, lower = better quality, 23 is default, 18 is visually lossless)
+  crf: 23
+  # Add date overlay to videos
+  show_date_overlay: true
+  # Generate per-year videos
+  generate_yearly_videos: true
+
+# Average image settings
+average_images:
+  # Generate overall average
+  generate_overall: true
+  # Generate by year
+  generate_by_year: true
+  # Generate by quarter
+  generate_by_quarter: true
+  # Generate by month
+  generate_by_month: true
+  # Minimum images required to generate an average
+  min_images: 3
+
+# Processing settings
+processing:
+  # Show debug images (requires display)
+  show_debug: false
+  # Verbose logging
+  verbose: true
+  # Skip already processed images
+  skip_existing: true
+  # Use parallel processing for face alignment
+  parallel: true
+  # Number of parallel workers (null = auto-detect, uses CPU count - 1)
+  num_workers: null

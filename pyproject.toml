@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "timelapse-portrait"
+version = "2.0.0"
+description = "Generate timelapse videos and composite images from portrait photos over time"
+authors = ["Ian <your-email@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+opencv-python = "*"
+imutils = "*"
+dlib = "*"
+matplotlib = "*"
+pillow-heif = "*"
+numpy = "*"
+pyyaml = "*"
+requests = "*"
+pillow = "*"
+tqdm = "*"
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+ipykernel = "^6.25.0"
+black = "^23.9.0"
+pytest = "^7.4.0"
+
+[tool.poetry.scripts]
+timelapse = "align_faces:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -136,6 +136,18 @@ dmypy.json
 *.MP4
 *.avi
 *.mp4
+*.HEIC
+*.heic
+*.png
+*.PNG
 
 # align faces dataframe
 *.dat
+
+# Google Photos API credentials and tokens
+credentials.json
+token.pickle
+token.json
+
+# Project-specific
+*.backup
