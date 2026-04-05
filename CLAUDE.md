@@ -1,6 +1,10 @@
 # CLAUDE.md
 
+_Last updated: 2025-10-26_
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+**Maintenance note**: Whenever new photos are added to `original_faces/`, update the `_Last updated_` date at the top of this file (and `README.md`) to reflect that date.
 
 ## Project Overview
 
@@ -18,8 +22,8 @@ The project is now organized as a modular Python application with the following 
 - **`src/image_processor.py`**: ImageProcessor for face detection, alignment pipeline, EXIF handling
 - **`src/video_generator.py`**: VideoGenerator for creating timelapse videos with date overlays
 - **`src/average_image.py`**: AverageImageGenerator for composite image creation
-- **`src/google_photos.py`**: GooglePhotosDownloader for syncing albums via Google Photos API
 - **`src/metadata_manager.py`**: MetadataManager for unified tracking (replaces legacy .txt files)
+- **`src/annotator.py`**: LandmarkAnnotator for manual eye-landmark annotation of failed images
 - **`align_faces.py`**: Main CLI entry point with argparse commands
 
 ### Processing Pipeline
@@ -33,7 +37,7 @@ The project is now organized as a modular Python application with the following 
 2. **Metadata Tracking** (`metadata.json`):
    - Failed images with reasons and categories
    - Face selection overrides (manual corrections)
-   - Downloaded photos from Google Photos
+   - Manual eye-landmark annotations
    - Successfully processed images
 
 3. **Output Generation**:
@@ -59,7 +63,6 @@ poetry add package-name
 Key dependencies:
 - opencv-python, dlib, imutils: Face processing
 - pillow-heif: HEIC format support
-- google-auth, google-api-python-client: Google Photos integration
 - pyyaml: Configuration management
 
 **External requirement**: ffmpeg for H.264 video encoding
@@ -81,12 +84,17 @@ poetry run python align_faces.py average
 # Full pipeline
 poetry run python align_faces.py all
 
-# Google Photos sync
-poetry run python align_faces.py sync
+# Manually annotate images where detection failed
+poetry run python align_faces.py annotate
+
+# Retry processing images with manual landmarks
+poetry run python align_faces.py retry
 
 # Or use shortcut
 poetry run timelapse <command>
 ```
+
+Photos are brought in manually: drop them into `original_faces/` (the directory configured in `config.yaml`). There is no automated sync.
 
 ## Configuration
 
@@ -96,7 +104,7 @@ All settings in `config.yaml`:
 - Detection settings (upsample times, auto-select)
 - Video settings (fps, codec, quality)
 - Average image settings (time periods, minimums)
-- Google Photos album name
+- Processing settings (parallelism, skip-existing, verbosity)
 
 ## Development Notes
 
