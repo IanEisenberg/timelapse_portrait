@@ -69,3 +69,17 @@ processing:
   parallel: true
   # Number of parallel workers (null = auto-detect, uses CPU count - 1)
   num_workers: null
+
+# Google Photos sync settings
+google_photos:
+  album_name: "Ma Face, Straight"
+  credentials_path: "credentials.json"
+  token_path: "token.json"
+
+# Autonomous pipeline settings
+auto:
+  website_repo: "/Users/ian/Projects/IanEisenberg.github.io"
+  website_video_path: "img/face-timelapse-small.mp4"
+  resize_width: 720
+  resize_height: 720
+  resize_crf: 28

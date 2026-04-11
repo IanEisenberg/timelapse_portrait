@@ -18,6 +18,8 @@ pyyaml = "*"
 requests = "*"
 pillow = "*"
 tqdm = "*"
+google-api-python-client = "*"
+google-auth-oauthlib = "*"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
