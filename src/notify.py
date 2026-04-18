@@ -9,7 +9,9 @@ def notify(title: str, message: str):
     Best-effort: swallows errors silently so it never breaks the pipeline.
     """
     try:
-        script = f'display notification "{message}" with title "{title}"'
+        safe_title = title.replace('"', '\\"')
+        safe_message = message.replace('"', '\\"')
+        script = f'display notification "{safe_message}" with title "{safe_title}"'
         subprocess.run(["osascript", "-e", script], capture_output=True, timeout=10)
     except Exception:
         pass
