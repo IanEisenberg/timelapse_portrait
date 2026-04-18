@@ -1,7 +1,7 @@
 """Google Photos album sync module."""
 
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 import requests
 from google.oauth2.credentials import Credentials

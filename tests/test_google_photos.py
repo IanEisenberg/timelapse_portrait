@@ -1,8 +1,6 @@
 """Tests for Google Photos sync module."""
 
 import os
-import tempfile
-from unittest.mock import MagicMock, patch
 
 from src.google_photos import GooglePhotosDownloader
 
