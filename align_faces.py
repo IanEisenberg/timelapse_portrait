@@ -3,9 +3,12 @@
 
 import argparse
 import os
+import re
+import subprocess as sp
 import sys
 import yaml
 import requests
+from datetime import date
 
 from src.metadata_manager import MetadataManager
 from src.image_processor import ImageProcessor
@@ -14,6 +17,39 @@ from src.average_image import AverageImageGenerator
 from src.annotator import LandmarkAnnotator
 from src.google_photos import GooglePhotosDownloader
 from src.notify import notify
+
+
+def resize_video(input_path: str, output_path: str, width: int, height: int, crf: int):
+    """Resize a video using ffmpeg."""
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", input_path,
+        "-vf", f"scale={width}:{height}",
+        "-c:v", "libx264",
+        "-crf", str(crf),
+        "-preset", "medium",
+        "-an",
+        output_path
+    ]
+    result = sp.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed: {result.stderr}")
+
+
+def update_last_updated_date(file_path: str):
+    """Update the _Last updated_ date in a markdown file to today."""
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    today = date.today().strftime("%Y-%m-%d")
+    updated = re.sub(
+        r'_Last updated: \d{4}-\d{2}-\d{2}_',
+        f'_Last updated: {today}_',
+        content
+    )
+
+    with open(file_path, 'w') as f:
+        f.write(updated)
 
 
 def load_config(config_path: str = 'config.yaml') -> dict:
@@ -366,6 +402,110 @@ def cmd_sync(args, config: dict):
         raise
 
 
+def cmd_auto(args, config: dict):
+    """Run autonomous pipeline: sync -> process -> video -> resize -> push."""
+    print("Running autonomous pipeline...")
+    print("=" * 50)
+
+    # Step 1: Sync
+    print("\n1. SYNC")
+    print("-" * 50)
+    gp_config = config.get('google_photos', {})
+    downloader = GooglePhotosDownloader(
+        credentials_path=gp_config.get('credentials_path', 'credentials.json'),
+        token_path=gp_config.get('token_path', 'token.json'),
+        album_name=gp_config.get('album_name', 'Ma Face, Straight'),
+        output_dir=config['paths']['original_faces'],
+        verbose=config['processing']['verbose']
+    )
+
+    try:
+        downloaded = downloader.sync()
+    except Exception as e:
+        notify("Timelapse Sync Failed", str(e))
+        raise
+
+    if downloaded == 0:
+        print("\nNo new photos. Pipeline complete (nothing to do).")
+        return
+
+    print(f"\nDownloaded {downloaded} new photos")
+
+    # Step 2: Process
+    print("\n2. PROCESS")
+    print("-" * 50)
+    cmd_process(args, config)
+
+    # Check for failures that need annotation
+    metadata = init_metadata(config)
+    needs_annotation = metadata.get_images_needing_annotation()
+    if needs_annotation:
+        notify(
+            "Timelapse: Annotation Needed",
+            f"{len(needs_annotation)} images need manual annotation. "
+            f"Run: poetry run timelapse annotate"
+        )
+
+    # Step 3: Video
+    print("\n3. VIDEO")
+    print("-" * 50)
+    try:
+        cmd_video(args, config)
+    except Exception as e:
+        notify("Timelapse Video Failed", str(e))
+        raise
+
+    # Step 4: Resize
+    print("\n4. RESIZE")
+    print("-" * 50)
+    auto_config = config.get('auto', {})
+    source_video = os.path.join(config['paths']['videos'], 'timelapse.mp4')
+    website_repo = auto_config.get('website_repo', '')
+    website_video_rel = auto_config.get('website_video_path', 'img/face-timelapse-small.mp4')
+    website_video_path = os.path.join(website_repo, website_video_rel)
+
+    try:
+        resize_video(
+            source_video,
+            website_video_path,
+            auto_config.get('resize_width', 720),
+            auto_config.get('resize_height', 720),
+            auto_config.get('resize_crf', 28)
+        )
+        print(f"Resized video written to {website_video_path}")
+    except Exception as e:
+        notify("Timelapse Resize Failed", str(e))
+        raise
+
+    # Step 5: Push website
+    print("\n5. PUSH WEBSITE")
+    print("-" * 50)
+    try:
+        sp.run(["git", "add", website_video_rel], cwd=website_repo, check=True)
+        sp.run(
+            ["git", "commit", "-m", "Update face timelapse"],
+            cwd=website_repo, check=True
+        )
+        sp.run(["git", "push"], cwd=website_repo, check=True)
+        print("Website repo pushed successfully")
+    except sp.CalledProcessError as e:
+        notify("Timelapse Website Push Failed", str(e))
+        raise
+
+    # Step 6: Update dates in this repo
+    print("\n6. UPDATE DATES")
+    print("-" * 50)
+    update_last_updated_date('CLAUDE.md')
+    update_last_updated_date('README.md')
+    sp.run(["git", "add", "CLAUDE.md", "README.md", "metadata.json"], check=True)
+    sp.run(["git", "commit", "-m", "Update last-updated dates after sync"], check=True)
+    sp.run(["git", "push"], check=True)
+    print("Timelapse repo dates updated and pushed")
+
+    print("\n" + "=" * 50)
+    print("Autonomous pipeline complete!")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -411,6 +551,9 @@ Examples:
     # Sync command
     subparsers.add_parser('sync', help='Sync new photos from Google Photos album')
 
+    # Auto command
+    subparsers.add_parser('auto', help='Run autonomous pipeline: sync, process, video, resize, push')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -429,6 +572,7 @@ Examples:
         'annotate': cmd_annotate,
         'retry': cmd_retry,
         'sync': cmd_sync,
+        'auto': cmd_auto,
     }
 
     command_func = commands.get(args.command)
