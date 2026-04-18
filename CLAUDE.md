@@ -24,6 +24,8 @@ The project is now organized as a modular Python application with the following 
 - **`src/average_image.py`**: AverageImageGenerator for composite image creation
 - **`src/metadata_manager.py`**: MetadataManager for unified tracking (replaces legacy .txt files)
 - **`src/annotator.py`**: LandmarkAnnotator for manual eye-landmark annotation of failed images
+- **`src/google_photos.py`**: GooglePhotosDownloader for syncing albums via Google Photos API
+- **`src/notify.py`**: macOS notification utility for pipeline error reporting
 - **`align_faces.py`**: Main CLI entry point with argparse commands
 
 ### Processing Pipeline
@@ -90,11 +92,17 @@ poetry run python align_faces.py annotate
 # Retry processing images with manual landmarks
 poetry run python align_faces.py retry
 
+# Sync new photos from Google Photos
+poetry run python align_faces.py sync
+
+# Run full autonomous pipeline (sync -> process -> video -> resize -> push)
+poetry run python align_faces.py auto
+
 # Or use shortcut
 poetry run timelapse <command>
 ```
 
-Photos are brought in manually: drop them into `original_faces/` (the directory configured in `config.yaml`). There is no automated sync.
+Photos can be synced from Google Photos (`sync` command) or added manually to `original_faces/`.
 
 ## Configuration
 
@@ -105,6 +113,8 @@ All settings in `config.yaml`:
 - Video settings (fps, codec, quality)
 - Average image settings (time periods, minimums)
 - Processing settings (parallelism, skip-existing, verbosity)
+- `google_photos`: album name, credentials/token paths
+- `auto`: website repo path, resize dimensions/CRF
 
 ## Development Notes
 
@@ -114,3 +124,11 @@ All settings in `config.yaml`:
 - **Jupyter Notebook**: `align_faces_refactored.ipynb` demonstrates programmatic usage
 - **Testing**: Run `poetry run pytest` (dev dependencies required)
 - **Formatting**: Use `poetry run black src/ align_faces.py`
+
+## Automation
+
+- **Monthly schedule**: Launchd runs `auto` on the 1st of each month at 10am
+- **Launchd plist**: `com.ian.timelapse-portrait.plist` (install to `~/Library/LaunchAgents/`)
+- **Logs**: `~/Library/Logs/timelapse-portrait.log`
+- **Notifications**: macOS notifications on sync/video/push failures and when images need annotation
+- **Google Photos setup**: Requires `credentials.json` from Google Cloud Console (OAuth 2.0 Desktop client). Run `poetry run timelapse sync` once interactively to authorize and generate `token.json`.
