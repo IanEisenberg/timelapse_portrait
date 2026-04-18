@@ -495,12 +495,23 @@ def cmd_auto(args, config: dict):
     # Step 6: Update dates in this repo
     print("\n6. UPDATE DATES")
     print("-" * 50)
-    update_last_updated_date('CLAUDE.md')
-    update_last_updated_date('README.md')
-    sp.run(["git", "add", "CLAUDE.md", "README.md", "metadata.json"], check=True)
-    sp.run(["git", "commit", "-m", "Update last-updated dates after sync"], check=True)
-    sp.run(["git", "push"], check=True)
-    print("Timelapse repo dates updated and pushed")
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    try:
+        update_last_updated_date(os.path.join(project_root, 'CLAUDE.md'))
+        update_last_updated_date(os.path.join(project_root, 'README.md'))
+        sp.run(
+            ["git", "add", "CLAUDE.md", "README.md", "metadata.json"],
+            cwd=project_root, check=True
+        )
+        sp.run(
+            ["git", "commit", "-m", "Update last-updated dates after sync"],
+            cwd=project_root, check=True
+        )
+        sp.run(["git", "push"], cwd=project_root, check=True)
+        print("Timelapse repo dates updated and pushed")
+    except Exception as e:
+        notify("Timelapse Date Update Failed", str(e))
+        raise
 
     print("\n" + "=" * 50)
     print("Autonomous pipeline complete!")
