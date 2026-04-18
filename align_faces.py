@@ -12,6 +12,8 @@ from src.image_processor import ImageProcessor
 from src.video_generator import VideoGenerator
 from src.average_image import AverageImageGenerator
 from src.annotator import LandmarkAnnotator
+from src.google_photos import GooglePhotosDownloader
+from src.notify import notify
 
 
 def load_config(config_path: str = 'config.yaml') -> dict:
@@ -338,6 +340,30 @@ def cmd_retry(args, config: dict):
     print(f"  Failed: {failed}")
 
 
+def cmd_sync(args, config: dict):
+    """Sync new photos from Google Photos album."""
+    gp_config = config.get('google_photos', {})
+    album_name = gp_config.get('album_name', 'Ma Face, Straight')
+    credentials_path = gp_config.get('credentials_path', 'credentials.json')
+    token_path = gp_config.get('token_path', 'token.json')
+    output_dir = config['paths']['original_faces']
+
+    print(f"Syncing from Google Photos album: '{album_name}'...")
+
+    downloader = GooglePhotosDownloader(
+        credentials_path=credentials_path,
+        token_path=token_path,
+        album_name=album_name,
+        output_dir=output_dir,
+        verbose=config['processing']['verbose']
+    )
+
+    try:
+        downloaded = downloader.sync()
+        print(f"\nSync complete! Downloaded {downloaded} new photos.")
+    except Exception as e:
+        print(f"\nSync failed: {e}")
+        raise
 
 
 def main():
@@ -382,6 +408,9 @@ Examples:
     # Retry command
     subparsers.add_parser('retry', help='Retry processing images with manual landmarks')
 
+    # Sync command
+    subparsers.add_parser('sync', help='Sync new photos from Google Photos album')
+
     args = parser.parse_args()
 
     if not args.command:
@@ -398,7 +427,8 @@ Examples:
         'average': cmd_average,
         'all': cmd_all,
         'annotate': cmd_annotate,
-        'retry': cmd_retry
+        'retry': cmd_retry,
+        'sync': cmd_sync,
     }
 
     command_func = commands.get(args.command)
