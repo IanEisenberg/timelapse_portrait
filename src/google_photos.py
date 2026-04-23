@@ -1,20 +1,27 @@
-"""Google Photos album sync module."""
+"""Google Photos Picker-based sync module.
+
+Uses the Google Photos Picker API (2025+) which requires interactive photo
+selection in the browser. The Library API's photoslibrary.readonly scope was
+deprecated March 2025 and no longer works for accessing existing albums.
+"""
 
 import os
+import time
+import webbrowser
 from typing import List, Dict
 
 import requests
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
 
 
-SCOPES = ["https://www.googleapis.com/auth/photoslibrary.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/photospicker.mediaitems.readonly"]
+PICKER_API = "https://photospicker.googleapis.com/v1"
 
 
 class GooglePhotosDownloader:
-    """Downloads new photos from a Google Photos album."""
+    """Downloads new photos from Google Photos via the interactive Picker API."""
 
     def __init__(
         self,
@@ -26,13 +33,13 @@ class GooglePhotosDownloader:
     ):
         self.credentials_path = credentials_path
         self.token_path = token_path
-        self.album_name = album_name
+        self.album_name = album_name  # kept for display/reference only
         self.output_dir = output_dir
         self.verbose = verbose
-        self.service = None
+        self.creds = None
 
     def authenticate(self):
-        """Authenticate with Google Photos API.
+        """Authenticate with Google Photos Picker API.
 
         Uses existing token.json if valid, otherwise runs interactive OAuth flow.
         """
@@ -56,65 +63,94 @@ class GooglePhotosDownloader:
             with open(self.token_path, "w") as f:
                 f.write(creds.to_json())
 
-        self.service = build("photoslibrary", "v1", credentials=creds, static_discovery=False)
+        self.creds = creds
 
-    def _find_album_id(self) -> str:
-        """Find album ID by name."""
-        page_token = None
-        while True:
-            results = self.service.albums().list(
-                pageSize=50, pageToken=page_token
-            ).execute()
+    def _auth_headers(self) -> dict:
+        return {"Authorization": f"Bearer {self.creds.token}"}
 
-            for album in results.get("albums", []):
-                if album["title"] == self.album_name:
-                    return album["id"]
+    def _create_session(self) -> dict:
+        """Create a new Picker session and return the session object."""
+        resp = requests.post(f"{PICKER_API}/sessions", headers=self._auth_headers(), json={})
+        resp.raise_for_status()
+        return resp.json()
 
-            page_token = results.get("nextPageToken")
-            if not page_token:
-                break
+    def _wait_for_selection(self, session_id: str, timeout_seconds: int = 600) -> bool:
+        """Poll until the user finishes selecting photos in the browser.
 
-        raise ValueError(f"Album not found: '{self.album_name}'")
+        Returns True if selection completed, False if timed out.
+        """
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            resp = requests.get(
+                f"{PICKER_API}/sessions/{session_id}",
+                headers=self._auth_headers()
+            )
+            resp.raise_for_status()
+            if resp.json().get("mediaItemsSet"):
+                return True
+            time.sleep(5)
+        return False
 
-    def _list_album_items(self, album_id: str) -> List[Dict]:
-        """List all media items in an album (handles pagination)."""
+    def _list_picker_items(self, session_id: str) -> List[Dict]:
+        """List all media items selected in the Picker session (handles pagination)."""
         items = []
         page_token = None
 
         while True:
-            body = {"albumId": album_id, "pageSize": 100}
+            params = {"sessionId": session_id, "pageSize": 100}
             if page_token:
-                body["pageToken"] = page_token
+                params["pageToken"] = page_token
 
-            results = self.service.mediaItems().search(body=body).execute()
+            resp = requests.get(
+                f"{PICKER_API}/mediaItems",
+                headers=self._auth_headers(),
+                params=params
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            items.extend(data.get("mediaItems", []))
 
-            items.extend(results.get("mediaItems", []))
-
-            page_token = results.get("nextPageToken")
+            page_token = data.get("nextPageToken")
             if not page_token:
                 break
 
         return items
 
+    def _delete_session(self, session_id: str):
+        """Clean up the Picker session."""
+        requests.delete(f"{PICKER_API}/sessions/{session_id}", headers=self._auth_headers())
+
     def _filter_new_items(self, items: List[Dict]) -> List[Dict]:
-        """Filter out items that already exist locally (case-insensitive on stem)."""
+        """Filter out items that already exist locally (case-insensitive stem match).
+
+        Picker API nests filename and baseUrl under mediaFile.
+        """
         existing_stems = set()
         for f in os.listdir(self.output_dir):
-            stem = os.path.splitext(f)[0].lower()
-            existing_stems.add(stem)
+            if os.path.isfile(os.path.join(self.output_dir, f)):
+                stem = os.path.splitext(f)[0].lower()
+                existing_stems.add(stem)
 
         new_items = []
         for item in items:
-            stem = os.path.splitext(item["filename"])[0].lower()
-            if stem not in existing_stems:
+            filename = item.get("mediaFile", {}).get("filename", "")
+            stem = os.path.splitext(filename)[0].lower()
+            if stem and stem not in existing_stems:
                 new_items.append(item)
 
         return new_items
 
     def _download_item(self, item: Dict) -> bool:
         """Download a single media item at original quality."""
-        filename = item["filename"]
-        url = item["baseUrl"] + "=d"
+        media_file = item.get("mediaFile", {})
+        filename = media_file.get("filename", "")
+        base_url = media_file.get("baseUrl", "")
+
+        if not filename or not base_url:
+            print(f"  Skipping item with missing filename or URL: {item.get('id')}")
+            return False
+
+        url = base_url + "=d"
 
         try:
             response = requests.get(url, timeout=120)
@@ -133,30 +169,41 @@ class GooglePhotosDownloader:
             return False
 
     def sync(self) -> int:
-        """Sync new photos from the album. Returns count of new photos downloaded."""
-        if self.service is None:
-            self.authenticate()
+        """Sync photos via the interactive Picker. Returns count downloaded.
 
+        Opens a browser window for the user to select photos, then downloads
+        any selected photos not already present in output_dir.
+        """
+        self.authenticate()
         os.makedirs(self.output_dir, exist_ok=True)
 
         if self.verbose:
-            print(f"Looking for album: '{self.album_name}'...")
+            print("Creating Google Photos Picker session...")
 
-        album_id = self._find_album_id()
+        session = self._create_session()
+        session_id = session["id"]
+        picker_uri = session["pickerUri"]
+
+        print(f"\nOpening Google Photos Picker in your browser.")
+        print(f"Navigate to the '{self.album_name}' album, select the photos, then click 'Allow access'.")
+        print(f"Waiting up to 10 minutes for your selection...\n")
+        webbrowser.open(picker_uri)
+
+        if not self._wait_for_selection(session_id):
+            self._delete_session(session_id)
+            raise TimeoutError("Timed out waiting for photo selection in Picker (10 min limit).")
+
+        all_items = self._list_picker_items(session_id)
+        self._delete_session(session_id)
 
         if self.verbose:
-            print(f"Found album. Listing items...")
-
-        all_items = self._list_album_items(album_id)
-
-        if self.verbose:
-            print(f"Album contains {len(all_items)} items total")
+            print(f"You selected {len(all_items)} photos.")
 
         new_items = self._filter_new_items(all_items)
 
         if not new_items:
             if self.verbose:
-                print("No new photos to download")
+                print("All selected photos already exist locally — nothing to download.")
             return 0
 
         if self.verbose:
@@ -168,6 +215,6 @@ class GooglePhotosDownloader:
                 downloaded += 1
 
         if self.verbose:
-            print(f"Downloaded {downloaded}/{len(new_items)} photos")
+            print(f"Downloaded {downloaded}/{len(new_items)} photos.")
 
         return downloaded

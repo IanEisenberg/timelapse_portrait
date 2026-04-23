@@ -1,8 +1,13 @@
-"""Tests for Google Photos sync module."""
+"""Tests for Google Photos sync module (Picker API)."""
 
 import os
 
 from src.google_photos import GooglePhotosDownloader
+
+
+def _picker_item(filename, url, item_id):
+    """Helper: build a Picker API media item with the nested mediaFile structure."""
+    return {"id": item_id, "mediaFile": {"filename": filename, "baseUrl": url}}
 
 
 def test_get_new_items_filters_existing(tmp_path):
@@ -11,9 +16,9 @@ def test_get_new_items_filters_existing(tmp_path):
     (tmp_path / "IMG_002.HEIC").touch()
 
     api_items = [
-        {"filename": "IMG_001.jpg", "baseUrl": "https://example.com/1", "id": "1"},
-        {"filename": "IMG_002.HEIC", "baseUrl": "https://example.com/2", "id": "2"},
-        {"filename": "IMG_003.jpg", "baseUrl": "https://example.com/3", "id": "3"},
+        _picker_item("IMG_001.jpg", "https://example.com/1", "1"),
+        _picker_item("IMG_002.HEIC", "https://example.com/2", "2"),
+        _picker_item("IMG_003.jpg", "https://example.com/3", "3"),
     ]
 
     downloader = GooglePhotosDownloader.__new__(GooglePhotosDownloader)
@@ -22,7 +27,7 @@ def test_get_new_items_filters_existing(tmp_path):
     new_items = downloader._filter_new_items(api_items)
 
     assert len(new_items) == 1
-    assert new_items[0]["filename"] == "IMG_003.jpg"
+    assert new_items[0]["mediaFile"]["filename"] == "IMG_003.jpg"
 
 
 def test_get_new_items_case_insensitive_extension(tmp_path):
@@ -30,7 +35,7 @@ def test_get_new_items_case_insensitive_extension(tmp_path):
     (tmp_path / "IMG_001.JPG").touch()
 
     api_items = [
-        {"filename": "IMG_001.jpg", "baseUrl": "https://example.com/1", "id": "1"},
+        _picker_item("IMG_001.jpg", "https://example.com/1", "1"),
     ]
 
     downloader = GooglePhotosDownloader.__new__(GooglePhotosDownloader)
@@ -44,8 +49,8 @@ def test_get_new_items_case_insensitive_extension(tmp_path):
 def test_get_new_items_empty_dir(tmp_path):
     """All items are new if output_dir is empty."""
     api_items = [
-        {"filename": "IMG_001.jpg", "baseUrl": "https://example.com/1", "id": "1"},
-        {"filename": "IMG_002.jpg", "baseUrl": "https://example.com/2", "id": "2"},
+        _picker_item("IMG_001.jpg", "https://example.com/1", "1"),
+        _picker_item("IMG_002.jpg", "https://example.com/2", "2"),
     ]
 
     downloader = GooglePhotosDownloader.__new__(GooglePhotosDownloader)
