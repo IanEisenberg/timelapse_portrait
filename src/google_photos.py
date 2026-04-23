@@ -153,7 +153,7 @@ class GooglePhotosDownloader:
         url = base_url + "=d"
 
         try:
-            response = requests.get(url, timeout=120)
+            response = requests.get(url, headers=self._auth_headers(), timeout=120)
             response.raise_for_status()
 
             output_path = os.path.join(self.output_dir, filename)
