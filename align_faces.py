@@ -436,15 +436,16 @@ def cmd_auto(args, config: dict):
     print("-" * 50)
     cmd_process(args, config)
 
-    # Check for failures that need annotation
+    # Annotate and retry if any images need manual landmarks
     metadata = init_metadata(config)
     needs_annotation = metadata.get_images_needing_annotation()
     if needs_annotation:
-        notify(
-            "Timelapse: Annotation Needed",
-            f"{len(needs_annotation)} images need manual annotation. "
-            f"Run: poetry run timelapse annotate"
-        )
+        print(f"\n2b. ANNOTATE ({len(needs_annotation)} images need manual landmarks)")
+        print("-" * 50)
+        cmd_annotate(args, config)
+        print("\n2c. RETRY")
+        print("-" * 50)
+        cmd_retry(args, config)
 
     # Step 3: Video
     print("\n3. VIDEO")
