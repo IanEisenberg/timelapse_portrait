@@ -127,8 +127,9 @@ All settings in `config.yaml`:
 
 ## Automation
 
-- **Monthly schedule**: Launchd runs `auto` on the 1st of each month at 10am
-- **Launchd plist**: `com.ian.timelapse-portrait.plist` (install to `~/Library/LaunchAgents/`)
+- **`auto` command**: Runs sync → process → video → resize → copy to website repo → git push website → bump `_Last updated_` dates
+- **Launchd plist**: `com.ian.timelapse-portrait.plist` fires on the 1st of each month at 10am (install to `~/Library/LaunchAgents/`)
+- **Note**: `sync` uses the Google Photos Picker API — it opens a browser for interactive photo selection. This means `auto` is semi-interactive (you must select photos in the browser). Fully unattended scheduling is not possible with the current Google Photos API (Library API was deprecated March 2025).
 - **Logs**: `~/Library/Logs/timelapse-portrait.log`
 - **Notifications**: macOS notifications on sync/video/push failures and when images need annotation
-- **Google Photos setup**: Requires `credentials.json` from Google Cloud Console (OAuth 2.0 Desktop client). Run `poetry run timelapse sync` once interactively to authorize and generate `token.json`.
+- **Google Photos setup**: Requires `credentials.json` from Google Cloud Console (OAuth 2.0 Desktop client, scope: `photospicker.mediaitems.readonly`). Run `poetry run timelapse sync` once to authorize and generate `token.json`.

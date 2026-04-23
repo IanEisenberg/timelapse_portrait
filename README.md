@@ -26,7 +26,7 @@ poetry install
 
 ### 2. Add Photos
 
-Place your portrait photos in the `original_faces/` directory.
+Place your portrait photos in the `original_faces/` directory, or sync from Google Photos (see [Google Photos Sync](#google-photos-sync) below).
 
 ### 3. Run
 
@@ -178,10 +178,35 @@ Creates composite "average face" images:
 ### Run Full Pipeline
 
 ```bash
-poetry run python align_faces.py all
+poetry run timelapse all
 ```
 
 Runs the complete pipeline: process → video → average
+
+### Manual Annotation (for failed detections)
+
+```bash
+poetry run timelapse annotate   # click eye landmarks on failed images
+poetry run timelapse retry      # reprocess annotated images
+```
+
+### Google Photos Sync
+
+```bash
+poetry run timelapse sync
+```
+
+Opens the Google Photos Picker in your browser. Select the photos you want to sync, click "Allow access", and new photos are downloaded to `original_faces/`. Requires `credentials.json` from Google Cloud Console (OAuth 2.0 Desktop client, scope: `photospicker.mediaitems.readonly`).
+
+> **Note:** Uses the Picker API (interactive) rather than the Library API, which Google deprecated in March 2025.
+
+### Autonomous Pipeline
+
+```bash
+poetry run timelapse auto
+```
+
+Runs the full pipeline in one command: sync from Google Photos → process faces → generate video → resize for website → push to `IanEisenberg.github.io` → update `_Last updated_` dates.
 
 ## Configuration
 
@@ -198,20 +223,24 @@ See `config.yaml` for all available options:
 
 ```
 timelapse_portrait/
-├── config.yaml              # Configuration file
-├── align_faces.py           # Main CLI script
-├── align_faces_refactored.ipynb  # Jupyter notebook
+├── config.yaml                       # Configuration file
+├── align_faces.py                    # Main CLI script
+├── align_faces_refactored.ipynb      # Jupyter notebook
+├── com.ian.timelapse-portrait.plist  # launchd agent (monthly schedule)
+├── run_monthly.sh                    # Wrapper script for launchd
 ├── src/
-│   ├── face_aligner.py      # Face alignment logic
-│   ├── image_processor.py   # Image processing pipeline
-│   ├── video_generator.py   # Video creation
-│   ├── average_image.py     # Composite image generation
-│   ├── google_photos.py     # Google Photos API integration
-│   └── metadata_manager.py  # Metadata tracking
-├── original_faces/          # Input photos
-├── aligned_faces/           # Aligned face outputs
-├── videos/                  # Generated videos
-└── average_images/          # Generated composites
+│   ├── face_aligner.py       # Face alignment logic
+│   ├── image_processor.py    # Image processing pipeline
+│   ├── video_generator.py    # Video creation
+│   ├── average_image.py      # Composite image generation
+│   ├── annotator.py          # Manual eye-landmark annotation UI
+│   ├── google_photos.py      # Google Photos Picker sync
+│   ├── notify.py             # macOS notification utility
+│   └── metadata_manager.py   # Metadata tracking
+├── original_faces/           # Input photos
+├── aligned_faces/            # Aligned face outputs
+├── videos/                   # Generated videos
+└── average_images/           # Generated composites
 ```
 
 ## Jupyter Notebook
@@ -320,8 +349,9 @@ Manual landmarks are saved in `metadata.json` and used automatically during retr
 ### Google Photos authentication fails
 
 - Check `credentials.json` is in project directory
-- Delete `token.pickle` and re-authenticate
-- Verify Photos Library API is enabled
+- Delete `token.json` and re-run `poetry run timelapse sync` to re-authenticate
+- Verify the `photospicker.mediaitems.readonly` scope is added to your OAuth consent screen
+- Note: The old `photoslibrary.readonly` scope was deprecated by Google in March 2025 and no longer works
 
 ## Advanced Usage
 
@@ -359,4 +389,4 @@ MIT License
 
 - dlib for face detection and alignment
 - imutils for face utilities
-- Google Photos API for photo management
+- Google Photos Picker API for photo sync
