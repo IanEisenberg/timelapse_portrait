@@ -127,7 +127,7 @@ All settings in `config.yaml`:
 
 ## Automation
 
-- **`auto` command**: Runs sync → process → video → resize → copy to website repo → git push website → bump `_Last updated_` dates
+- **`auto` command**: Runs sync → process → (annotate + retry if needed) → video → resize → copy to website repo → git push website → bump `_Last updated_` dates
 - **Launchd plist**: `com.ian.timelapse-portrait.plist` fires on the 1st of each month at 10am (install to `~/Library/LaunchAgents/`)
 - **Note**: `sync` uses the Google Photos Picker API — it opens a browser for interactive photo selection. This means `auto` is semi-interactive (you must select photos in the browser). Fully unattended scheduling is not possible with the current Google Photos API (Library API was deprecated March 2025).
 - **Logs**: `~/Library/Logs/timelapse-portrait.log`

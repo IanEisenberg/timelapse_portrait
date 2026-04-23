@@ -206,7 +206,7 @@ Opens the Google Photos Picker in your browser. Select the photos you want to sy
 poetry run timelapse auto
 ```
 
-Runs the full pipeline in one command: sync from Google Photos → process faces → generate video → resize for website → push to `IanEisenberg.github.io` → update `_Last updated_` dates.
+Runs the full pipeline in one command: sync from Google Photos → process faces → annotate + retry (if any failed) → generate video → resize for website → push to `IanEisenberg.github.io` → update `_Last updated_` dates.
 
 ## Configuration
 
