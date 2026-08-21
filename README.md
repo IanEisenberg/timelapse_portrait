@@ -1,6 +1,6 @@
 # Face Timelapse Portrait Generator
 
-_Last updated: 2025-10-26_
+_Last updated: 2026-08-21_
 
 Generate timelapse videos and composite images from portrait photos over time. This tool detects faces, aligns them based on eye positions, and creates visualizations showing changes over time.
 
